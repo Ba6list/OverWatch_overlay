@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>JOWS Settings</title>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyBy5YRJSQll0S37G1sVbbdosrVBJdQJGYA",
+  authDomain: "jows-overlay.firebaseapp.com",
+  projectId: "jows-overlay"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+// Cloudinary設定
+// Cloudinary管理画面で確認した値に置き換えてください。
+const cloudinaryCloudName = "zwnups2c";
+const cloudinaryUploadPreset = "Team_logo";
+
+const allowedLogoTypes = ["image/png", "image/jpeg", "image/webp"];
+const maxLogoSize = 5 * 1024 * 1024;
+</script>
+
+<style>
+body{
+  margin:0;
+  font-family:sans-serif;
+  background:linear-gradient(135deg,#2b2b2b,#3a3a3a);
+  color:white;
+}
+
+.header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:20px 40px;
+  font-size:26px;
+}
+
+.headerLeft,.headerRight{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+
+.headerBtn{
+  background:#e5e5e5;
+  border:none;
+  border-radius:25px;
+  padding:8px 20px;
+  font-size:14px;
+  cursor:pointer;
+  color:#111;
+  text-decoration:none;
+}
+
+.container{
+  display:grid;
+  grid-template-columns:420px 1fr;
+  gap:30px;
+  padding:0 30px 30px;
+}
+
+.card{
+  background:#f5f5f5;
+  color:#111;
+  border-radius:30px;
+  padding:30px;
+  box-shadow:0 10px 30px rgba(255,0,0,0.2);
+}
+
+.label{
+  font-weight:bold;
+  margin-top:18px;
+}
+
+.input{
+  width:100%;
+  box-sizing:border-box;
+  padding:14px 20px;
+  border-radius:18px;
+  border:none;
+  background:#ddd;
+  margin-top:8px;
+  font-size:16px;
+}
+
+.file{
+  margin-top:8px;
+  width:100%;
+}
+
+.btn{
+  width:100%;
+  margin-top:24px;
+  padding:14px;
+  border:none;
+  border-radius:25px;
+  cursor:pointer;
+  font-weight:bold;
+  background:#9fd4d9;
+}
+
+.btn:disabled{
+  opacity:.55;
+  cursor:not-allowed;
+}
+
+.message{
+  min-height:22px;
+  margin-top:14px;
+  font-weight:bold;
+}
+
+.teamGrid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(220px,1fr));
+  gap:18px;
+}
+
+.teamItem{
+  background:#e8e8e8;
+  border-radius:18px;
+  padding:18px;
+  display:grid;
+  grid-template-columns:72px 1fr;
+  gap:14px;
+  align-items:center;
+}
+
+.teamLogo{
+  width:72px;
+  height:72px;
+  object-fit:contain;
+  background:white;
+  border-radius:12px;
+}
+
+.teamName{
+  font-weight:bold;
+  word-break:break-word;
+}
+
+.deleteBtn{
+  margin-top:10px;
+  padding:8px 14px;
+  border:none;
+  border-radius:16px;
+  background:#e2a3a3;
+  cursor:pointer;
+}
+
+@media(max-width:900px){
+  .container{grid-template-columns:1fr;}
+}
+</style>
+</head>
+
+<body>
+<div class="header">
+  <div class="headerLeft">
+    <img src="./JOWS.png" height="40">
+    設定
+  </div>
+  <div class="headerRight">
+    <a class="headerBtn" href="control.html">管理画面へ</a>
+    <button id="logoutBtn" class="headerBtn">ログアウト</button>
+  </div>
+</div>
+
+<div class="container">
+  <div class="card">
+    <h2>チーム追加</h2>
+
+    <div class="label">チーム名</div>
+    <input id="teamName" class="input" placeholder="例：AIMCORE">
+
+    <div class="label">ロゴ画像</div>
+    <input id="teamLogo" class="file" type="file" accept="image/png,image/jpeg,image/webp">
+
+    <button id="uploadBtn" class="btn">アップロード</button>
+    <div id="message" class="message"></div>
+  </div>
+
+  <div class="card">
+    <h2>登録済みチーム</h2>
+    <div id="teamGrid" class="teamGrid"></div>
+  </div>
+</div>
+
+<script>
+let uid = "";
+
+const teamNameInput = document.getElementById("teamName");
+const teamLogoInput = document.getElementById("teamLogo");
+const uploadBtn = document.getElementById("uploadBtn");
+const message = document.getElementById("message");
+const teamGrid = document.getElementById("teamGrid");
+const logoutBtn = document.getElementById("logoutBtn");
+
+function userDoc(){
+  return db.collection("users").doc(uid);
+}
+
+function teamsCollection(){
+  return userDoc().collection("teams");
+}
+
+function safeFileName(name){
+  return name.replace(/[\\/#?%*:|"<>]/g, "_").trim();
+}
+
+function setMessage(text, isError = false){
+  message.innerText = text;
+  message.style.color = isError ? "#c42626" : "#197a4d";
+}
+
+function validateLogoFile(file){
+  if(!allowedLogoTypes.includes(file.type)){
+    return "ロゴ画像は png / jpg / jpeg / webp のみ使用できます";
+  }
+
+  if(file.size > maxLogoSize){
+    return "ロゴ画像は5MB以下にしてください";
+  }
+
+  return "";
+}
+
+async function uploadTeam(){
+  const name = teamNameInput.value.trim();
+  const file = teamLogoInput.files[0];
+
+  if(!name){
+    setMessage("チーム名を入力してください", true);
+    return;
+  }
+
+  if(!file){
+    setMessage("ロゴ画像を選択してください", true);
+    return;
+  }
+
+  const fileError = validateLogoFile(file);
+  if(fileError){
+    setMessage(fileError, true);
+    return;
+  }
+
+  uploadBtn.disabled = true;
+  setMessage("アップロード中...");
+
+  try{
+    if(cloudinaryCloudName === "YOUR_CLOUD_NAME" || cloudinaryUploadPreset === "YOUR_UNSIGNED_UPLOAD_PRESET"){
+      setMessage("Cloudinary設定をsettings.htmlに入力してください", true);
+      uploadBtn.disabled = false;
+      return;
+    }
+
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("upload_preset", cloudinaryUploadPreset);
+
+    const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudinaryCloudName}/image/upload`, {
+      method: "POST",
+      body: formData
+    });
+
+    const result = await response.json();
+
+    if(!response.ok){
+      throw new Error(result.error?.message || "Cloudinary upload failed");
+    }
+
+    const logoUrl = result.secure_url;
+
+    await teamsCollection().add({
+      name,
+      logoUrl,
+      cloudinaryPublicId: result.public_id || "",
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    teamNameInput.value = "";
+    teamLogoInput.value = "";
+    setMessage("登録しました");
+    loadTeams();
+  }catch(error){
+    setMessage("アップロードに失敗しました。Cloudinary設定を確認してください", true);
+  }finally{
+    uploadBtn.disabled = false;
+  }
+}
+
+async function deleteTeam(team){
+  if(!confirm(`${team.name} を削除しますか？`)) return;
+
+  try{
+    await teamsCollection().doc(team.id).delete();
+    loadTeams();
+  }catch(error){
+    setMessage("削除に失敗しました", true);
+  }
+}
+
+async function loadTeams(){
+  const snap = await teamsCollection().orderBy("name").get();
+  teamGrid.innerHTML = "";
+
+  if(snap.empty){
+    teamGrid.innerHTML = "<div>まだチームが登録されていません。</div>";
+    return;
+  }
+
+  snap.docs.forEach(doc => {
+    const team = { id: doc.id, ...doc.data() };
+    const item = document.createElement("div");
+    item.className = "teamItem";
+
+    const img = document.createElement("img");
+    img.className = "teamLogo";
+    img.src = team.logoUrl || "";
+
+    const body = document.createElement("div");
+    const name = document.createElement("div");
+    name.className = "teamName";
+    name.innerText = team.name;
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.className = "deleteBtn";
+    deleteBtn.innerText = "削除";
+    deleteBtn.onclick = () => deleteTeam(team);
+
+    body.appendChild(name);
+    body.appendChild(deleteBtn);
+    item.appendChild(img);
+    item.appendChild(body);
+    teamGrid.appendChild(item);
+  });
+}
+
+async function logout(){
+  await auth.signOut();
+  localStorage.removeItem("jows_uid");
+  location.href = "login.html";
+}
+
+auth.onAuthStateChanged(user => {
+  if(!user){
+    location.href = "login.html";
+    return;
+  }
+
+  uid = user.uid;
+  localStorage.setItem("jows_uid", uid);
+  loadTeams();
+});
+
+uploadBtn.onclick = uploadTeam;
+logoutBtn.onclick = logout;
+</script>
+</body>
+</html>
