@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>JOWS Control</title>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyBy5YRJSQll0S37G1sVbbdosrVBJdQJGYA",
+  authDomain: "jows-overlay.firebaseapp.com",
+  projectId: "jows-overlay"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+</script>
+
+<style>
+body{
+  margin:0;
+  font-family:sans-serif;
+  background:linear-gradient(135deg,#2b2b2b,#3a3a3a);
+}
+
+.header{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:16px;
+  padding:20px 40px;
+  color:white;
+  font-size:26px;
+}
+
+.headerLeft,.headerRight{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+
+.headerBtn{
+  background:#e5e5e5;
+  border:none;
+  border-radius:25px;
+  padding:8px 20px;
+  font-size:14px;
+  cursor:pointer;
+  transition:.2s;
+  text-decoration:none;
+  color:#111;
+}
+
+.headerBtn:hover{background:#dcdcdc;}
+
+.container{
+  display:grid;
+  grid-template-columns:1.2fr 1fr;
+  gap:30px;
+  padding:0 30px 30px;
+  align-items:start;
+}
+
+.card{
+  background:#f5f5f5;
+  border-radius:30px;
+  padding:30px;
+  box-shadow:0 10px 30px rgba(255,0,0,0.2);
+}
+
+.mainCard{
+  min-height:492px;
+  box-sizing:border-box;
+}
+
+.teamColumn{
+  display:flex;
+  flex-direction:column;
+  gap:20px;
+}
+
+.mode{
+  display:flex;
+  align-items:center;
+  gap:20px;
+}
+
+.modeBtns{
+  display:flex;
+  gap:12px;
+}
+
+.modeBtn{
+  padding:10px 30px;
+  border-radius:25px;
+  border:none;
+  background:#ccc;
+  cursor:pointer;
+  transition:.2s;
+  font-weight:bold;
+}
+
+.modeBtn.active{
+  background:#d9df9c;
+  box-shadow:0 3px 10px rgba(0,0,0,.2);
+}
+
+.actions{
+  margin-top:25px;
+  display:flex;
+  gap:20px;
+  flex-wrap:wrap;
+}
+
+.btn{
+  padding:12px 35px;
+  border:none;
+  border-radius:25px;
+  cursor:pointer;
+  font-weight:bold;
+  transition:.15s;
+}
+
+.swap{background:#9fd4d9;}
+.reset{background:#e2a3a3;}
+.copy{background:#d9df9c;}
+.detail{background:#ddd;}
+
+.btn:active{transform:scale(.95);}
+.btn.flash{animation:flash .25s;}
+
+@keyframes flash{
+  0%{filter:brightness(1)}
+  50%{filter:brightness(1.6)}
+  100%{filter:brightness(1)}
+}
+
+.scoreArea{
+  margin-top:60px;
+  display:flex;
+  justify-content:center;
+  gap:120px;
+}
+
+.scoreBox{
+  background:#ddd;
+  padding:40px 70px;
+  border-radius:20px;
+  text-align:center;
+}
+
+.scoreRow{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:20px;
+}
+
+.scoreNum{
+  font-size:64px;
+  font-weight:bold;
+}
+
+.scoreBtn{
+  width:45px;
+  height:45px;
+  border:none;
+  border-radius:8px;
+  background:white;
+  font-size:20px;
+  cursor:pointer;
+}
+
+.scoreBtn:active{
+  transform:scale(.9);
+  background:#ccc;
+}
+
+.teamCard{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:20px;
+  min-height:206px;
+  box-sizing:border-box;
+}
+
+.teamInputs{width:70%;}
+
+.input{
+  width:100%;
+  box-sizing:border-box;
+  padding:14px 20px;
+  border-radius:25px;
+  border:none;
+  margin-top:10px;
+  font-size:16px;
+}
+
+.teamInput{background:#cfd6f5;}
+.banInput{background:#f1b5b5;}
+.standingInput{background:#d9df9c;}
+
+.logo{
+  width:120px;
+  height:120px;
+  object-fit:contain;
+}
+
+.disabledBlock{
+  opacity:.45;
+  pointer-events:none;
+}
+
+.disabledInput{
+  opacity:.45;
+  pointer-events:none;
+}
+
+.detailPanel{
+  display:none;
+  margin-top:25px;
+  padding:20px;
+  background:#e5e5e5;
+  border-radius:20px;
+}
+
+.detailPanel.open{
+  display:grid;
+  grid-template-columns:repeat(3, minmax(0, 1fr));
+  gap:16px;
+}
+
+.toggleBox{
+  background:white;
+  border-radius:16px;
+  padding:16px;
+  font-weight:bold;
+}
+
+.toggleBox label{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  cursor:pointer;
+}
+
+.toggleBox.disabled{
+  opacity:.45;
+}
+
+.toggleBox.disabled label{
+  pointer-events:none;
+}
+
+.dropdown{position:relative;}
+
+.dropdownList{
+  position:absolute;
+  top:50px;
+  width:100%;
+  background:white;
+  border-radius:12px;
+  max-height:220px;
+  overflow-y:auto;
+  display:none;
+  z-index:10;
+  box-shadow:0 12px 24px rgba(0,0,0,.15);
+}
+
+.dropdownItem{
+  padding:12px;
+  cursor:pointer;
+}
+
+.dropdownItem:hover{background:#eee;}
+
+.status{
+  margin-top:18px;
+  color:white;
+  font-size:14px;
+}
+
+.version{
+  font-size:14px;
+  margin-left:12px;
+  padding:4px 10px;
+  background:rgba(255,255,255,0.2);
+  border-radius:10px;
+}
+
+.copyright{
+  position:fixed;
+  bottom:10px;
+  right:30px;
+  font-size:15px;
+  color:white;
+  font-weight:500;
+  pointer-events:none;
+  z-index:9999;
+}
+</style>
+</head>
+
+<body>
+<div class="header">
+  <div class="headerLeft">
+    <img src="./JOWS.png" height="40">
+    JOWS 配信UI管理画面 <span class="version">ver1.1</span>
+  </div>
+
+  <div class="headerRight">
+    <a class="headerBtn" href="settings.html">設定</a>
+    <button id="previewBtn" class="headerBtn">プレビュー</button>
+    <button id="logoutBtn" class="headerBtn">ログアウト</button>
+    <button id="saveBtn" class="headerBtn">保存</button>
+  </div>
+</div>
+
+<div class="container">
+  <div>
+    <div class="card mainCard">
+      <div class="mode">
+        攻守表示
+        <div class="modeBtns">
+          <button id="normalBtn" class="modeBtn active">なし</button>
+          <button id="optionBtn" class="modeBtn">あり</button>
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="swapBtn" class="btn swap">攻守入れ替え</button>
+        <button id="resetBtn" class="btn reset">全てリセット</button>
+        <button id="copyOverlayBtn" class="btn copy">配信用URLコピー</button>
+        <button id="detailBtn" class="btn detail">詳細表示</button>
+      </div>
+
+      <div id="detailPanel" class="detailPanel">
+        <div class="toggleBox">
+          <label>
+            <input id="banEnabled" type="checkbox" checked>
+            BAN表示
+          </label>
+        </div>
+        <div id="standingToggleBox" class="toggleBox">
+          <label>
+            <input id="standingEnabled" type="checkbox">
+            順位表示
+          </label>
+        </div>
+        <div class="toggleBox">
+          <label>
+            <input id="logoEnabled" type="checkbox" checked>
+            チームロゴ表示
+          </label>
+        </div>
+      </div>
+
+      <div class="scoreArea">
+        <div class="scoreBox">
+          <div class="scoreRow">
+            <button id="scoreAMinus" class="scoreBtn">-</button>
+            <div id="scoreA" class="scoreNum">0</div>
+            <button id="scoreAPlus" class="scoreBtn">+</button>
+          </div>
+          <div>Team A</div>
+        </div>
+
+        <div class="scoreBox">
+          <div class="scoreRow">
+            <button id="scoreBMinus" class="scoreBtn">-</button>
+            <div id="scoreB" class="scoreNum">0</div>
+            <button id="scoreBPlus" class="scoreBtn">+</button>
+          </div>
+          <div>Team B</div>
+        </div>
+      </div>
+    </div>
+
+    <div id="status" class="status"></div>
+  </div>
+
+  <div class="teamColumn">
+    <div class="card teamCard">
+      <div class="teamInputs">
+        チーム名
+        <div class="dropdown">
+          <input id="teamA" class="input teamInput" autocomplete="off">
+          <div id="teamListA" class="dropdownList"></div>
+        </div>
+
+        BAN
+        <div id="banWrapA" class="dropdown">
+          <input id="banA" class="input banInput" autocomplete="off">
+          <div id="heroListA" class="dropdownList"></div>
+        </div>
+
+        順位
+        <div id="standingWrapA" class="dropdown">
+          <input id="standingA" class="input standingInput" autocomplete="off">
+          <div id="standingListA" class="dropdownList"></div>
+        </div>
+
+        Team A
+      </div>
+      <img id="logoA" class="logo">
+    </div>
+
+    <div class="card teamCard">
+      <div class="teamInputs">
+        チーム名
+        <div class="dropdown">
+          <input id="teamB" class="input teamInput" autocomplete="off">
+          <div id="teamListB" class="dropdownList"></div>
+        </div>
+
+        BAN
+        <div id="banWrapB" class="dropdown">
+          <input id="banB" class="input banInput" autocomplete="off">
+          <div id="heroListB" class="dropdownList"></div>
+        </div>
+
+        順位
+        <div id="standingWrapB" class="dropdown">
+          <input id="standingB" class="input standingInput" autocomplete="off">
+          <div id="standingListB" class="dropdownList"></div>
+        </div>
+
+        Team B
+      </div>
+      <img id="logoB" class="logo">
+    </div>
+  </div>
+</div>
+
+<div class="copyright">©JOWS Created by Ba6list</div>
+
+<script>
+const heroes = ["Ana","anran","Ashe","Baptiste","Bastion","Brigitte","Cassidy","D.va","domina","Doomfist","Echo","emre","Freja","Genji","Hanzo","Hazard","Illari","jetpackcat","Junker_Queen","Junkrat","Juno","Kiriko","Lifeweaver","Lucio","Mauga","Mei","Mercy","mizuki","Moira","Orisa","Pharah","Ramattra","Reaper","Reinhardt","Roadhog","Sigma","Sojourn","Soldier","Sombra","Symmetra","Torbjorn","Tracer","Vendetta","Venture","Widow","Winston","Wrecking_Ball","Wuyang","Zarya","Zeniyatta"];
+const standings = ["1st","2nd","3rd","4th","5th","6th","7th","8th","9th","10th"];
+
+let uid = "";
+let teams = [];
+let selectedTeamA = null;
+let selectedTeamB = null;
+let a = 0;
+let b = 0;
+let currentSide = "attack_right";
+
+const teamAInput = document.getElementById("teamA");
+const teamBInput = document.getElementById("teamB");
+const banAInput = document.getElementById("banA");
+const banBInput = document.getElementById("banB");
+const standingAInput = document.getElementById("standingA");
+const standingBInput = document.getElementById("standingB");
+const logoA = document.getElementById("logoA");
+const logoB = document.getElementById("logoB");
+const scoreA = document.getElementById("scoreA");
+const scoreB = document.getElementById("scoreB");
+const normalBtn = document.getElementById("normalBtn");
+const optionBtn = document.getElementById("optionBtn");
+const swapBtn = document.getElementById("swapBtn");
+const resetBtn = document.getElementById("resetBtn");
+const saveBtn = document.getElementById("saveBtn");
+const logoutBtn = document.getElementById("logoutBtn");
+const copyOverlayBtn = document.getElementById("copyOverlayBtn");
+const previewBtn = document.getElementById("previewBtn");
+const detailBtn = document.getElementById("detailBtn");
+const detailPanel = document.getElementById("detailPanel");
+const banEnabledInput = document.getElementById("banEnabled");
+const standingEnabledInput = document.getElementById("standingEnabled");
+const logoEnabledInput = document.getElementById("logoEnabled");
+const standingToggleBox = document.getElementById("standingToggleBox");
+const banWrapA = document.getElementById("banWrapA");
+const banWrapB = document.getElementById("banWrapB");
+const standingWrapA = document.getElementById("standingWrapA");
+const standingWrapB = document.getElementById("standingWrapB");
+const status = document.getElementById("status");
+
+function userDoc(){
+  return db.collection("users").doc(uid);
+}
+
+function matchDoc(){
+  return userDoc().collection("match").doc("current");
+}
+
+function setStatus(text){
+  status.innerText = text;
+}
+
+function flash(el){
+  el.classList.add("flash");
+  setTimeout(() => el.classList.remove("flash"), 250);
+}
+
+function getTeamByName(name){
+  return teams.find(team => team.name === name) || null;
+}
+
+function updateLogos(){
+  selectedTeamA = getTeamByName(teamAInput.value);
+  selectedTeamB = getTeamByName(teamBInput.value);
+
+  logoA.src = selectedTeamA?.logoUrl || "";
+  logoB.src = selectedTeamB?.logoUrl || "";
+}
+
+function updateFeatureState(){
+  const banEnabled = banEnabledInput.checked;
+  const standingEnabled = standingEnabledInput.checked;
+  const logoEnabled = logoEnabledInput.checked;
+
+  if(!banEnabled){
+    standingEnabledInput.checked = false;
+  }
+
+  standingToggleBox.classList.toggle("disabled", !banEnabled);
+  banWrapA.classList.toggle("disabledInput", !banEnabled);
+  banWrapB.classList.toggle("disabledInput", !banEnabled);
+  standingWrapA.classList.toggle("disabledInput", !banEnabled || !standingEnabledInput.checked);
+  standingWrapB.classList.toggle("disabledInput", !banEnabled || !standingEnabledInput.checked);
+  logoA.classList.toggle("disabledBlock", !logoEnabled);
+  logoB.classList.toggle("disabledBlock", !logoEnabled);
+}
+
+function openList(id){
+  document.querySelectorAll(".dropdownList").forEach(el => el.style.display = "none");
+  document.getElementById(id).style.display = "block";
+}
+
+function createList(id, getData, input, onSelect){
+  const list = document.getElementById(id);
+
+  function render(filter = ""){
+    const data = getData();
+    list.innerHTML = "";
+
+    data
+      .filter(item => item.label.toLowerCase().includes(filter.toLowerCase()))
+      .forEach(item => {
+        const div = document.createElement("div");
+        div.className = "dropdownItem";
+        div.innerText = item.label;
+        div.onclick = () => {
+          input.value = item.label;
+          list.style.display = "none";
+          onSelect(item);
+        };
+        list.appendChild(div);
+      });
+  }
+
+  input.addEventListener("focus", () => {
+    render(input.value);
+    openList(id);
+  });
+
+  input.addEventListener("input", () => {
+    render(input.value);
+    openList(id);
+    onSelect(null);
+  });
+
+  render();
+}
+
+function setupDropdowns(){
+  createList(
+    "teamListA",
+    () => teams.map(team => ({ label: team.name, team })),
+    teamAInput,
+    item => {
+      selectedTeamA = item?.team || getTeamByName(teamAInput.value);
+      updateLogos();
+    }
+  );
+
+  createList(
+    "teamListB",
+    () => teams.map(team => ({ label: team.name, team })),
+    teamBInput,
+    item => {
+      selectedTeamB = item?.team || getTeamByName(teamBInput.value);
+      updateLogos();
+    }
+  );
+
+  createList(
+    "heroListA",
+    () => heroes.map(hero => ({ label: hero })),
+    banAInput,
+    () => {}
+  );
+
+  createList(
+    "heroListB",
+    () => heroes.map(hero => ({ label: hero })),
+    banBInput,
+    () => {}
+  );
+
+  createList(
+    "standingListA",
+    () => standings.map(standing => ({ label: standing })),
+    standingAInput,
+    () => {}
+  );
+
+  createList(
+    "standingListB",
+    () => standings.map(standing => ({ label: standing })),
+    standingBInput,
+    () => {}
+  );
+}
+
+async function loadTeams(){
+  const snap = await userDoc().collection("teams").orderBy("name").get();
+  teams = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  setupDropdowns();
+  updateLogos();
+}
+
+function changeScore(target, value){
+  if(target === "A"){
+    a = Math.max(0, a + value);
+    scoreA.innerText = a;
+  }else{
+    b = Math.max(0, b + value);
+    scoreB.innerText = b;
+  }
+}
+
+function setMode(mode){
+  normalBtn.classList.toggle("active", mode !== "escort");
+  optionBtn.classList.toggle("active", mode === "escort");
+  swapBtn.classList.toggle("disabledBlock", mode !== "escort");
+}
+
+async function saveMatch(){
+  updateLogos();
+
+  await matchDoc().set({
+    teamA: teamAInput.value.trim(),
+    teamB: teamBInput.value.trim(),
+    teamAId: selectedTeamA?.id || "",
+    teamBId: selectedTeamB?.id || "",
+    teamALogoUrl: selectedTeamA?.logoUrl || "",
+    teamBLogoUrl: selectedTeamB?.logoUrl || "",
+    banA: banAInput.value.trim(),
+    banB: banBInput.value.trim(),
+    standingA: standingAInput.value.trim(),
+    standingB: standingBInput.value.trim(),
+    scoreA: a,
+    scoreB: b,
+    mode: optionBtn.classList.contains("active") ? "escort" : "control",
+    side: currentSide,
+    banEnabled: banEnabledInput.checked,
+    standingEnabled: banEnabledInput.checked && standingEnabledInput.checked,
+    logoEnabled: logoEnabledInput.checked,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  }, { merge:true });
+
+  saveBtn.innerText = "保存完了";
+  saveBtn.style.background = "#9fd4d9";
+  setTimeout(() => {
+    saveBtn.innerText = "保存";
+    saveBtn.style.background = "#e5e5e5";
+  }, 1000);
+}
+
+async function loadMatch(){
+  const doc = await matchDoc().get();
+  if(!doc.exists) return;
+
+  const d = doc.data();
+  teamAInput.value = d.teamA || "";
+  teamBInput.value = d.teamB || "";
+  banAInput.value = d.banA || "";
+  banBInput.value = d.banB || "";
+  standingAInput.value = d.standingA || "";
+  standingBInput.value = d.standingB || "";
+
+  a = d.scoreA || 0;
+  b = d.scoreB || 0;
+  scoreA.innerText = a;
+  scoreB.innerText = b;
+
+  currentSide = d.side || "attack_right";
+  banEnabledInput.checked = d.banEnabled !== false;
+  standingEnabledInput.checked = d.standingEnabled === true;
+  logoEnabledInput.checked = d.logoEnabled !== false;
+  setMode(d.mode);
+  updateLogos();
+  updateFeatureState();
+}
+
+async function logout(){
+  await auth.signOut();
+  localStorage.removeItem("jows_uid");
+  location.href = "login.html";
+}
+
+function copyOverlayUrl(){
+  const url = new URL("overlay.html", location.href);
+  url.searchParams.set("uid", uid);
+  navigator.clipboard.writeText(url.href).then(() => {
+    setStatus("配信用URLをコピーしました: " + url.href);
+  });
+}
+
+function openPreview(){
+  const url = new URL("overlay.html", location.href);
+  url.searchParams.set("uid", uid);
+  window.open(url.href, "_blank", "noopener");
+}
+
+auth.onAuthStateChanged(async user => {
+  if(!user){
+    location.href = "login.html";
+    return;
+  }
+
+  await user.reload();
+  if(!user.emailVerified){
+    await auth.signOut();
+    location.href = "login.html";
+    return;
+  }
+
+  uid = user.uid;
+  localStorage.setItem("jows_uid", uid);
+  setStatus("読み込み中...");
+
+  await loadTeams();
+  await loadMatch();
+  updateFeatureState();
+
+  setStatus("設定ページでチーム名とロゴを追加できます。");
+});
+
+document.getElementById("scoreAMinus").onclick = () => changeScore("A", -1);
+document.getElementById("scoreAPlus").onclick = () => changeScore("A", 1);
+document.getElementById("scoreBMinus").onclick = () => changeScore("B", -1);
+document.getElementById("scoreBPlus").onclick = () => changeScore("B", 1);
+
+normalBtn.onclick = () => setMode("control");
+optionBtn.onclick = () => setMode("escort");
+
+swapBtn.onclick = async e => {
+  flash(e.target);
+  currentSide = currentSide === "attack_right" ? "attack_left" : "attack_right";
+  await matchDoc().set({ side: currentSide }, { merge:true });
+};
+
+resetBtn.onclick = e => {
+  flash(e.target);
+  a = 0;
+  b = 0;
+  scoreA.innerText = 0;
+  scoreB.innerText = 0;
+};
+
+saveBtn.onclick = saveMatch;
+logoutBtn.onclick = logout;
+copyOverlayBtn.onclick = copyOverlayUrl;
+previewBtn.onclick = openPreview;
+detailBtn.onclick = () => {
+  detailPanel.classList.toggle("open");
+  detailBtn.innerText = detailPanel.classList.contains("open") ? "詳細を閉じる" : "詳細表示";
+};
+banEnabledInput.onchange = updateFeatureState;
+standingEnabledInput.onchange = updateFeatureState;
+logoEnabledInput.onchange = updateFeatureState;
+
+document.addEventListener("click", e => {
+  if(!e.target.closest(".dropdown")){
+    document.querySelectorAll(".dropdownList").forEach(el => el.style.display = "none");
+  }
+});
+</script>
+</body>
+</html>
